@@ -1,0 +1,136 @@
+# etcd — Distributed key-value store
+# Used by Patroni for leader election
+#
+# Physically: a pod running on your cluster that stores small pieces of data
+# Patroni writes "postgres-0 is leader" into etcd
+# Patroni reads that key to know who is primary
+# If the key expires, replica promotes itself
+#
+# For Phase 1 we run a single etcd node
+# Production would need 3 etcd nodes for quorum
+# but single node is fine for a prototype
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd
+  namespace: intellidb
+  labels:
+    app: etcd
+spec:
+  # ClusterIP service so Patroni can reach etcd by name
+  # Patroni connects to http://etcd:2379
+  # "etcd" here is this service name — Kubernetes DNS resolves it
+  selector:
+    app: etcd
+  ports:
+    - port: 2379        # etcd client port — this is what Patroni connects to
+      name: client
+    - port: 2380        # etcd peer port — used for etcd cluster communication
+      name: peer        # not needed for single node but good practice to expose
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: etcd
+  namespace: intellidb
+  labels:
+    app: etcd
+spec:
+  # StatefulSet not Deployment because etcd stores data
+  # If etcd restarts it needs its data back — same reason as PostgreSQL
+  serviceName: etcd
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: etcd
+
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          # Official etcd image from the etcd project
+          # 3.5.9 is a stable recent version
+          image: quay.io/coreos/etcd:v3.5.9
+
+          # These are the startup commands for etcd
+          # etcd doesn't use a config file — everything is passed as flags
+          command:
+            - etcd
+            # Name of this etcd node — must be unique in the cluster
+            - --name=etcd-0
+            # Where etcd stores its data inside the container
+            - --data-dir=/etcd-data
+            # What address etcd listens on for client connections (Patroni)
+            # 0.0.0.0 means listen on all network interfaces
+            - --listen-client-urls=http://0.0.0.0:2379
+            # What address etcd advertises to clients
+            # This is the address Patroni will actually connect to
+            # etcd.intellidb.svc.cluster.local is the full DNS name of our Service
+            - --advertise-client-urls=http://etcd.intellidb.svc.cluster.local:2379
+            # What address etcd listens on for peer connections (other etcd nodes)
+            - --listen-peer-urls=http://0.0.0.0:2380
+            # What address this node advertises to other etcd nodes
+            - --initial-advertise-peer-urls=http://etcd.intellidb.svc.cluster.local:2380
+            # The initial cluster members — just ourselves for single node
+            - --initial-cluster=etcd-0=http://etcd.intellidb.svc.cluster.local:2380
+            # new = this is a brand new cluster, not joining an existing one
+            - --initial-cluster-state=new
+            # Token to identify this cluster — prevents accidental cross-cluster joins
+            - --initial-cluster-token=intellidb-etcd
+            - --enable-v2=true
+
+
+          ports:
+            - containerPort: 2379
+              name: client
+            - containerPort: 2380
+              name: peer
+
+          # Mount persistent storage for etcd data
+          # If etcd restarts, it reads its previous state from here
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /etcd-data
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+
+          # Check etcd health using its own health endpoint
+          # etcd exposes /health on port 2379 which returns ok when healthy
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 2379
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 2379
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
+  # PVC for etcd data storage
+  # Same concept as PostgreSQL PVCs — data survives pod restarts
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
