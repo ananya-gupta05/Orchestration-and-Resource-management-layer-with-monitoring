@@ -1,0 +1,73 @@
+syntax = "proto3";
+package cloud;
+
+service CloudResourceManager {
+
+  // Called by Sanvi's backend when a new tenant signs up
+  // You provision K8s infrastructure then call Yahavi's CreateTenantSchema
+  rpc ProvisionTenant (ProvisionRequest) returns (ProvisionResponse);
+
+  // Called by Sanvi's backend when a tenant deletes their account
+  // You call Yahavi's DeleteTenantSchema then clean up K8s objects
+  rpc TerminateTenant (TerminateRequest) returns (TerminateResponse);
+
+  // Called by Sanvi's backend to check infrastructure health
+  rpc GetInfraStatus (StatusRequest) returns (StatusResponse);
+  rpc GetClusterMetrics(GetClusterMetricsRequest) returns (GetClusterMetricsResponse);
+}
+
+message ProvisionRequest {
+  int32  tenant_id   = 1;
+  string schema_name = 2;  // e.g. "tenant_1001" — matches Yahavi's naming
+  string user_name   = 3;
+  string company     = 4;
+  string tier        = 5;  // "basic", "standard", "premium"
+  int32  storage_gb  = 6;
+  int32  conn_limit  = 7;
+}
+
+message ProvisionResponse {
+  string status              = 1;  // "READY" or "FAILED"
+  string endpoint            = 2;  // postgres-primary service DNS name
+  int32  port                = 3;  // 5432
+  string pgbouncer_endpoint  = 4;
+  string node_primary        = 5;  // which node primary landed on
+  string node_replica        = 6;  // which node replica landed on
+  string error_message       = 7;
+  string db_username         = 8;
+
+  string db_password         = 9;
+}
+
+message TerminateRequest {
+  int32  tenant_id   = 1;
+  string schema_name = 2;
+}
+
+message TerminateResponse {
+  string status        = 1;  // "TERMINATED" or "FAILED"
+  string error_message = 2;
+}
+
+message StatusRequest {
+  int32 tenant_id = 1;
+}
+
+message StatusResponse {
+  string primary_pod     = 1;
+  string replica_pod     = 2;
+  string primary_status  = 3;
+  string replica_status  = 4;
+  bool   pvcs_bound      = 5;
+  string patroni_role    = 6;  // "Leader" or "Replica"
+  string patroni_lag_mb  = 7;  // replication lag
+}
+message GetClusterMetricsRequest {}
+
+message GetClusterMetricsResponse {
+    double cluster_cpu_usage_percent = 1;
+    double cluster_ram_usage_percent = 2;
+    double cluster_storage_used_gb = 3;
+    double cluster_bandwidth_mb = 4;
+    double cluster_io_throughput = 5;
+}
