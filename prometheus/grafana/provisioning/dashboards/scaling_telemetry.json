@@ -1,0 +1,89 @@
+{
+  "title": "Scaling & Telemetry",
+  "uid": "intellidb-scaling",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Scaling Events",
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "intellidb_scaling_events_total", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "stat",
+      "title": "Clamped Events (bounds enforced)",
+      "id": 2,
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "intellidb_scaling_events_total{outcome=\"clamped\"}", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Rejected Events",
+      "id": 3,
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "intellidb_scaling_events_total{outcome=\"rejected\"}", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "red", "value": 1}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Total Telemetry Scrape Errors",
+      "id": 4,
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "intellidb_telemetry_scrape_errors_total", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 1}, {"color": "red", "value": 10}]}}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Scaling Events by Action & Outcome",
+      "id": 5,
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(intellidb_scaling_events_total{action=\"scale_up\",outcome=\"applied\"}[5m])", "legendFormat": "scale_up — applied"},
+        {"expr": "rate(intellidb_scaling_events_total{action=\"scale_down\",outcome=\"applied\"}[5m])", "legendFormat": "scale_down — applied"},
+        {"expr": "rate(intellidb_scaling_events_total{outcome=\"clamped\"}[5m])", "legendFormat": "clamped"},
+        {"expr": "rate(intellidb_scaling_events_total{outcome=\"skipped\"}[5m])", "legendFormat": "skipped"},
+        {"expr": "rate(intellidb_scaling_events_total{outcome=\"rejected\"}[5m])", "legendFormat": "rejected"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry Scrape Errors by Category",
+      "id": 6,
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [{"expr": "rate(intellidb_telemetry_scrape_errors_total[5m])", "legendFormat": "{{category}}"}],
+      "fieldConfig": {"defaults": {"unit": "errors/s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry Scrape Duration (P95 / P99)",
+      "id": 7,
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, rate(intellidb_telemetry_scrape_duration_seconds_bucket[5m]))", "legendFormat": "P95"},
+        {"expr": "histogram_quantile(0.99, rate(intellidb_telemetry_scrape_duration_seconds_bucket[5m]))", "legendFormat": "P99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL Transaction Rate (from postgres_exporter)",
+      "id": 8,
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(pg_stat_database_xact_commit_total{datname=\"intellidb\"}[5m])", "legendFormat": "commits/s"},
+        {"expr": "rate(pg_stat_database_xact_rollback_total{datname=\"intellidb\"}[5m])", "legendFormat": "rollbacks/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    }
+  ]
+}

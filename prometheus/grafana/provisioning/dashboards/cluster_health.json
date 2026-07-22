@@ -1,0 +1,107 @@
+{
+  "title": "Cluster Health",
+  "uid": "intellidb-cluster",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Patroni Healthy",
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_patroni_healthy", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "UNHEALTHY", "color": "red"}, "1": {"text": "HEALTHY", "color": "green"}}}]}}
+    },
+    {
+      "type": "stat",
+      "title": "Pods Ready",
+      "id": 2,
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_cluster_pods_ready", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 1}, {"color": "green", "value": 2}]}, "max": 2}}
+    },
+    {
+      "type": "stat",
+      "title": "Replication Lag",
+      "id": 3,
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_patroni_replication_lag_mb", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"unit": "decmbytes", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 50}, {"color": "red", "value": 100}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "CPU Usage",
+      "id": 4,
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_cluster_cpu_usage_percent > 0", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "RAM Usage",
+      "id": 5,
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_cluster_ram_usage_percent > 0", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 75}, {"color": "red", "value": 90}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Storage Used",
+      "id": 6,
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "intellidb_cluster_storage_used_gb", "legendFormat": ""}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "decgbytes"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU & RAM Over Time",
+      "id": 7,
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "intellidb_cluster_cpu_usage_percent > 0", "legendFormat": "CPU %"},
+        {"expr": "intellidb_cluster_ram_usage_percent > 0", "legendFormat": "RAM %"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Storage & Replication Lag Over Time",
+      "id": 8,
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "intellidb_cluster_storage_used_gb", "legendFormat": "Storage (GB)"},
+        {"expr": "intellidb_patroni_replication_lag_mb", "legendFormat": "Replication lag (MB)"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Bandwidth & IO Throughput",
+      "id": 9,
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "intellidb_cluster_bandwidth_mb_per_sec", "legendFormat": "Bandwidth (MB/s)"},
+        {"expr": "intellidb_cluster_io_throughput_mb_per_sec", "legendFormat": "IO (MB/s)"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "MBs"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL Active Connections (from postgres_exporter)",
+      "id": 10,
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "pg_stat_activity_count{datname=\"intellidb\"}", "legendFormat": "Active connections"},
+        {"expr": "pg_stat_database_numbackends{datname=\"intellidb\"}", "legendFormat": "Backends"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    }
+  ]
+}

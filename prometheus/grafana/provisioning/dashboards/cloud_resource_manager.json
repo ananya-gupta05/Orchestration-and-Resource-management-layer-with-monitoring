@@ -1,0 +1,103 @@
+{
+  "title": "Cloud Resource Manager",
+  "uid": "intellidb-crm",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Provision Success Rate",
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "rate(intellidb_provision_requests_total{status=\"success\"}[5m]) / rate(intellidb_provision_requests_total[5m]) * 100",
+        "legendFormat": "Success %"
+      }],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background"},
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 90}, {"color": "green", "value": 99}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Provision P99 Latency",
+      "id": 2,
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, rate(intellidb_provision_duration_seconds_bucket[5m]))",
+        "legendFormat": "P99"
+      }],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 5}, {"color": "red", "value": 10}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Total Provisions (lifetime)",
+      "id": 3,
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "intellidb_provision_requests_total{status=\"success\"}",
+        "legendFormat": "Successful"
+      }],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "stat",
+      "title": "Total Terminations (lifetime)",
+      "id": 4,
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [{
+        "expr": "intellidb_terminate_requests_total{status=\"success\"}",
+        "legendFormat": "Terminated"
+      }],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Provision Request Rate",
+      "id": 5,
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(intellidb_provision_requests_total{status=\"success\"}[5m])", "legendFormat": "success"},
+        {"expr": "rate(intellidb_provision_requests_total{status=\"failed_capacity\"}[5m])", "legendFormat": "failed — capacity"},
+        {"expr": "rate(intellidb_provision_requests_total{status=\"failed_db\"}[5m])", "legendFormat": "failed — db layer"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Provision Latency (P50 / P95 / P99)",
+      "id": 6,
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, rate(intellidb_provision_duration_seconds_bucket[5m]))", "legendFormat": "P50"},
+        {"expr": "histogram_quantile(0.95, rate(intellidb_provision_duration_seconds_bucket[5m]))", "legendFormat": "P95"},
+        {"expr": "histogram_quantile(0.99, rate(intellidb_provision_duration_seconds_bucket[5m]))", "legendFormat": "P99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry Scrape Errors by Category",
+      "id": 7,
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(intellidb_telemetry_scrape_errors_total[5m])",
+        "legendFormat": "{{category}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "errors/s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry Scrape Duration",
+      "id": 8,
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, rate(intellidb_telemetry_scrape_duration_seconds_bucket[5m]))", "legendFormat": "P95"},
+        {"expr": "histogram_quantile(0.99, rate(intellidb_telemetry_scrape_duration_seconds_bucket[5m]))", "legendFormat": "P99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    }
+  ]
+}
