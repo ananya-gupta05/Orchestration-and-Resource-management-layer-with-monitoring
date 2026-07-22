@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: intellidb
+
+spec:
+  serviceName: postgres-headless
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - postgres
+                topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: postgres
+          image: ghcr.io/zalando/spilo-15:3.0-p1
+
+          env:
+            # Pod identity — Spilo uses this as the Patroni node name
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            # Spilo reads SCOPE as the Patroni cluster name
+            - name: SCOPE
+              value: "intellidb-cluster"
+
+            # Tell Spilo where etcd is
+            # Spilo reads ETCD_HOSTS specifically — host:port format, no http://
+            - name: ETCD_HOSTS
+              value: "etcd:2379"
+
+            # Superuser password — Spilo specifically looks for this variable
+            - name: PATRONI_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: PATRONI_SUPERUSER_PASSWORD
+
+            # Replication user password
+            - name: PATRONI_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: PATRONI_REPLICATION_PASSWORD
+
+            # Where Spilo stores PostgreSQL data
+            - name: PGDATA
+              value: "/home/postgres/pgdata/pgroot/data"
+
+            # Pod IP — used by Patroni to advertise its address
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          ports:
+            - containerPort: 5432
+              name: postgres
+            - containerPort: 8008
+              name: patroni-api
+
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /home/postgres/pgdata
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8008
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8008
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
