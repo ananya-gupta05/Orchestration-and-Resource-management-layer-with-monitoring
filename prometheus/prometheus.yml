@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Cloud Resource Manager — custom application metrics
+  # Counters: provision requests, terminate requests, scaling events, telemetry errors
+  # Histograms: provision latency, telemetry scrape duration
+  # Gauges: cluster CPU/RAM/storage, Patroni health, pods ready
+  - job_name: "cloud-grpc"
+    static_configs:
+      - targets: ["cloud-grpc:9090"]
+
+  # postgres_exporter — PostgreSQL internals from pg_stat_*
+  # Gives you: active connections, DB size, transactions/s, replication lag
+  - job_name: "postgres-exporter"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
