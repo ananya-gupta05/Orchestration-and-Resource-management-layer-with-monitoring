@@ -1,0 +1,5 @@
+grpcio==1.80.0
+grpcio-tools==1.80.0
+kubernetes==36.0.1
+protobuf==6.33.6
+prometheus_client>=0.20.0
