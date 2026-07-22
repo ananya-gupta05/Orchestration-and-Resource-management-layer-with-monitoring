@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: intellidb
+  labels:
+    managed-by: cloud-resource-manager
