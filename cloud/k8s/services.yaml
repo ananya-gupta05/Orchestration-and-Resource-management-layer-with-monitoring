@@ -1,0 +1,51 @@
+# 1. Headless service — required by StatefulSet for pod DNS
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: intellidb
+  labels:
+    app: postgres
+spec:
+  clusterIP: None          # This is what makes it headless
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      name: postgres
+---
+# 2. Primary service — write traffic goes here
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: intellidb
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+    role: master             # Patroni labels the primary pod with this
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  type: ClusterIP
+---
+# 3. Replica service — optional read traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica
+  namespace: intellidb
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+    role: replica            # Patroni labels replica pods with this
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  type: ClusterIP
