@@ -1,0 +1,101 @@
+# RBAC for Patroni
+#
+# Patroni needs to patch pod labels to mark which pod is primary
+# It also needs to patch endpoints so the Service routes correctly
+# Without this, Patroni can't update the role=master label on pods
+# which means postgres-primary Service won't find the right pod
+#
+# Role = defines what permissions exist
+# RoleBinding = grants those permissions to a specific user/service account
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: patroni-role
+  namespace: intellidb
+rules:
+  # Patroni needs to read and write ConfigMaps for storing cluster state
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "list", "patch", "update", "watch", "delete"]
+  # Patroni needs to patch pod labels (role=master / role=replica)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "patch", "update", "watch"]
+  # Patroni needs to patch endpoints for service routing
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["create", "get", "list", "patch", "update", "watch", "delete"]
+  # Patroni needs to read services
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: patroni-rolebinding
+  namespace: intellidb
+# subjects = who gets these permissions
+# The default service account is what pods use by default
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: intellidb
+# roleRef = which role to grant
+roleRef:
+  kind: Role
+  name: patroni-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ServiceAccount for the cloud-grpc pod
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-grpc
+  namespace: intellidb
+
+---
+# Permissions the cloud-grpc pod needs:
+#   - Read pods and PVCs (health checks, telemetry)
+#   - Exec into pods (Patroni status, storage df, IO/bandwidth)
+#   - Read and patch StatefulSets (scaling consumer)
+#   - Read pod metrics (CPU/RAM from metrics-server)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloud-grpc-role
+  namespace: intellidb
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloud-grpc-rolebinding
+  namespace: intellidb
+subjects:
+  - kind: ServiceAccount
+    name: cloud-grpc
+    namespace: intellidb
+roleRef:
+  kind: Role
+  name: cloud-grpc-role
+  apiGroup: rbac.authorization.k8s.io
